@@ -21,7 +21,7 @@ ST0270 Formal Languages and Compilers Final Project
 ## Detailed instructions for execution:
 - Clone the github repository:
 ```bash
-git clone https://github.com/ssramirezr/assignment-2-assignamet2-teamss.git
+git clone https://github.com/ssramirezr/project-teamss.git
 ```
 
 - To compile:
