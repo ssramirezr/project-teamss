@@ -28,6 +28,7 @@ vector<string> getProductions(string prod){
     }
     return derivations;
 }
+
 Gramatica getGrammar(int gLines){
     Gramatica gramatica;
     while(gLines--){
@@ -119,9 +120,83 @@ void getFirsts(map<char, Properties>& properties, Gramatica gramatica){
     }
 }
 
+int findInProduction(string production, char value){
+    for(int i=0;i<production.size();i++){
+        if(production[i] == value) return i;
+    }
+    return -1;
+}
+
+void addCharToFollow(vector<char>& follow, char terminal){
+    for(char val: follow){
+        if(val == terminal) return;
+    }
+    follow.push_back(terminal);
+}
+
+void addFirstToFollow(map<char, Properties>& properties, char nonTerminal, char head){
+    for(char terminal: properties[head].firstSet){
+        if(terminal != 'e') addCharToFollow(properties[nonTerminal].followSet, terminal);
+    }
+}
+
+void mergeFollows(vector<char>& followB, vector<char> followA){
+    for(char inFollowA: followA){
+        bool found = false;
+        for(char inFollowB: followB){
+            if(inFollowA == inFollowB){
+                found = true;
+                break;
+            }
+        }
+        if(!found) followB.push_back(inFollowA);
+    }
+}
+
+void findFollow(map<char, Properties>& properties, Gramatica gramatica, char nonTerminal){
+    vector<char>& follow = properties[nonTerminal].followSet;
+    for(char head: gramatica.order){
+        for(string dev: gramatica.gramatica[head]){
+            int pos = findInProduction(dev, nonTerminal);
+            if(pos >= 0){
+                if(pos+1 < dev.size()){
+                    char val = dev[pos+1];
+                    if(isupper(val)){
+                        if(!properties[val].hasEpsilon){
+                            addFirstToFollow(properties, nonTerminal, head);
+                        }else{
+                            if(properties[head].followSet.size() == 0){
+                                findFollow(properties, gramatica, head);
+                            }
+                            mergeFollows(follow, properties[head].followSet);
+                        }
+                    }else{
+                        addCharToFollow(follow, val);
+                    }
+                }else{
+                    if(properties[head].followSet.size() == 0){
+                        findFollow(properties, gramatica, head);
+                    }
+                    mergeFollows(follow, properties[head].followSet);
+                }
+            }
+        }
+    }
+}
+
+void getFollows(map<char, Properties>& properties, Gramatica gramatica){
+    properties['S'].followSet.push_back('$');
+    findFollow(properties, gramatica, 'S');
+    for(char head: gramatica.order){
+        if(properties[head].followSet.size() == 0){
+            findFollow(properties, gramatica, head);
+        }
+    }
+}
+
 void printFirsts(map<char, Properties> properties, Gramatica gramatica){
     for(const char nonTerminal: gramatica.order){
-        cout << "FIRST(" << nonTerminal << ") = {";
+        cout << "First(" << nonTerminal << ") = {";
         bool first = true;
         for (const char val : properties[nonTerminal].firstSet) {
             if (!first) {
@@ -134,6 +209,20 @@ void printFirsts(map<char, Properties> properties, Gramatica gramatica){
     }
 }
 
+void printFollows(map<char, Properties> properties, Gramatica gramatica){
+    for(const char nonTerminal: gramatica.order){
+        cout << "Follow(" << nonTerminal << ") = {";
+        bool first = true;
+        for (const char val : properties[nonTerminal].followSet) {
+            if (!first) {
+                cout << ", ";
+            }
+            cout << val;
+            first = false;
+        }
+        cout << "}" << endl;
+    }
+}
 
 int main(){
     int cases; 
@@ -145,7 +234,9 @@ int main(){
         Gramatica gramatica  = getGrammar(gLines);
         map<char, Properties> properties;
         getFirsts(properties, gramatica);
+        getFollows(properties, gramatica);
         printFirsts(properties, gramatica);
+        printFollows(properties, gramatica);
     }
     return 0;
 }
