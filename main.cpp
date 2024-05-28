@@ -1,13 +1,19 @@
 #include <iostream>
-#include <map>
 #include <vector>
+#include <map>
 #include <string>
 
 using namespace std;
 
-struct First{
-    vector<string> firstSet;
-    bool hasEpsilon = false;
+struct Properties{
+    vector<char> firstSet;
+    vector<char> followSet; 
+    bool hasEpsilon = false; //Solo aplicable para set de firsts.
+};
+
+struct Gramatica{
+    map<char, vector<string>> gramatica;
+    vector<char> order;
 };
 
 vector<string> getProductions(string prod){
@@ -22,92 +28,124 @@ vector<string> getProductions(string prod){
     }
     return derivations;
 }
+Gramatica getGrammar(int gLines){
+    Gramatica gramatica;
+    while(gLines--){
+        string production; getline(cin, production);
+        char head = production[0];
+        vector<string> prods = getProductions(production.substr(2));
+        gramatica.order.push_back(head);
+        gramatica.gramatica[head] = prods;
+    }
+    return gramatica;
+}
 
-bool findInFirst(vector<string> first, string value){
+bool findInFirst(vector<char> first, char terminal){
     bool exist = false;
     for(int i=0;i<first.size() && !exist;i++){
-        if(first[i] == value){
+        if(first[i] == terminal){
             exist = true;
         }
     }
     return exist;
 }
 
-void mergeFirsts(map<string, First>& firsts, string x, string y){
-    for(string terminal: firsts[y].firstSet){
-        if(!findInFirst(firsts[x].firstSet, terminal) && terminal != "e"){
-            firsts[x].firstSet.push_back(terminal);
+void mergeFirsts(map<char, Properties>& properties, char head, char value){
+    for(char terminal: properties[value].firstSet){
+        if(!findInFirst(properties[head].firstSet, terminal) && terminal != 'e'){
+            properties[head].firstSet.push_back(terminal);
         }
     }
 }
 
-void calcFirst(map<string, First>& firsts, map<string, vector<string>> grammar, string nonTerminal){
-    for(string dev: grammar[nonTerminal]){
-        int i = 0;
-        string value = dev.substr(i, 1);
-        if(dev[i] >= 65 && dev[i] <= 90 ){
-            if(firsts[value].firstSet.size() == 0){
-                calcFirst(firsts, grammar, value);
+void findFirst(map<char, Properties>& properties, Gramatica gramatica, char nonTerminal){
+    vector<char>& first = properties[nonTerminal].firstSet;
+    bool hasNext = false;
+    for(string dev: gramatica.gramatica[nonTerminal]){
+        int i=0;
+        char value = dev[i];
+        if(value == nonTerminal){
+            if(i+1 < dev.size()) hasNext = true;
+            continue;   
+        }
+        if(isupper(value)){
+            if(properties[value].firstSet.size() == 0){
+                findFirst(properties, gramatica, value);
             }
-            mergeFirsts(firsts, nonTerminal, value);
+            mergeFirsts(properties, nonTerminal, value);
             i++;
-            while(firsts[value].hasEpsilon && i < dev.size()){
-                value = dev.substr(i, 1);
-                if(dev[i] < 65 || dev[i] > 90){
-                    firsts[nonTerminal].firstSet.push_back(value);
+            while(properties[value].hasEpsilon && i < dev.size()){
+                value = dev[i];
+                if(!isupper(value)){
+                    if(!findInFirst(first, value)) first.push_back(value);
                     break;
                 }else{
-                    if(firsts[value].firstSet.size() == 0){
-                        calcFirst(firsts, grammar, value);
+                    if(properties[value].firstSet.size() == 0){
+                        findFirst(properties, gramatica, value);
                     }
-                    mergeFirsts(firsts, nonTerminal, value);
+                    mergeFirsts(properties, nonTerminal, value);
                     i++;
                 }
+                if(i == dev.size() && properties[value].hasEpsilon){
+                    first.push_back('e');
+                    properties[nonTerminal].hasEpsilon = true;
+                }
             }
-            if(i == dev.size()){
-                firsts[nonTerminal].firstSet.push_back("e");
-                firsts[nonTerminal].hasEpsilon = true;
-            }
-
         }else{
-            firsts[nonTerminal].firstSet.push_back(value);
-            if(value == "e") firsts[nonTerminal].hasEpsilon = true;
+            if(!findInFirst(first, value)) first.push_back(value);
+            if(value == 'e') properties[nonTerminal].hasEpsilon = true;
+        }
+    }
+    if(properties[nonTerminal].hasEpsilon && hasNext){
+        for(string dev: gramatica.gramatica[nonTerminal]){
+            if(dev[0] == nonTerminal && dev.size() > 1){
+                char next = dev[1];
+                if(isupper(next)){
+                    if(properties[next].firstSet.size() == 0) findFirst(properties, gramatica, next);
+                    mergeFirsts(properties, nonTerminal, next);
+                }else{
+                    if(!findInFirst(first, next)) first.push_back(next);
+                }
+            }
         }
     }
 }
 
-void getFirsts(map<string, First>& firsts, map<string, vector<string>> grammar){
-    for(pair<string, vector<string>> rule: grammar){
-        if(firsts[rule.first].firstSet.size() == 0){
-            calcFirst(firsts, grammar, rule.first);
+void getFirsts(map<char, Properties>& properties, Gramatica gramatica){
+    for(char head: gramatica.order){
+        if(properties[head].firstSet.size() == 0){
+            findFirst(properties, gramatica, head);
         }
     }
 }
+
+void printFirsts(map<char, Properties> properties, Gramatica gramatica){
+    for(const char nonTerminal: gramatica.order){
+        cout << "FIRST(" << nonTerminal << ") = {";
+        bool first = true;
+        for (const char val : properties[nonTerminal].firstSet) {
+            if (!first) {
+                cout << ", ";
+            }
+            cout << val;
+            first = false;
+        }
+        cout << "}" << endl;
+    }
+}
+
 
 int main(){
     int cases; 
     cin >> cases;
     while(cases--){
         int gLines; 
-        cin >> gLines; //Lineas de gramática
-        map<string, vector<string>> gramatica; //Diccionario que va a tener la gramatica.
-        map<string, First> firsts; //Diccionario que almacenará los firsts.
-        map<string, vector<string>> follows; //Diccionario que almacenará los follows.
+        cin >> gLines; //Num of grammar lines.
         cin.ignore();
-        while(gLines--){
-            string production; getline(cin, production);
-            string head = production.substr(0,1);
-            gramatica[head] = getProductions(production.substr(2));
-            firsts[head]; //Inicialización del mapa de firsts en el no terminal.
-            follows[head]; //Inicialización del mapa de follows en el no terminal
-        }
-        getFirsts(firsts, gramatica);
-        for(auto& val: firsts){
-            cout << "Head: " << val.first << endl;
-            for(auto& t: val.second.firstSet){
-                cout << t << endl;
-            }
-        }
+        Gramatica gramatica  = getGrammar(gLines);
+        map<char, Properties> properties;
+        getFirsts(properties, gramatica);
+        printFirsts(properties, gramatica);
     }
     return 0;
 }
