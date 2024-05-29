@@ -15,8 +15,10 @@ ST0270 Formal Languages and Compilers Final Project
 
 ## Tools used:
 
--(To be filled)-
-
+- iostream: to read the inputs and write the outputs through the screen.
+- vector: to store relevant information for the execution of the algorithm.
+- map: to store the grammar to be used for the analysis of the strings.
+- struct: is not a library, but is a native tool used for creating new data type (Grammar and Properties) that helped us to keep the code clean and tidy.
 
 ## Detailed instructions for execution:
 - Clone the github repository:
