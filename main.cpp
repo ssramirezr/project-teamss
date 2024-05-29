@@ -100,10 +100,22 @@ void findFirst(map<char, Properties>& properties, Gramatica gramatica, char nonT
     if(properties[nonTerminal].hasEpsilon && hasNext){
         for(string dev: gramatica.gramatica[nonTerminal]){
             if(dev[0] == nonTerminal && dev.size() > 1){
-                char next = dev[1];
+                int i = 1;
+                char next = dev[i];
                 if(isupper(next)){
                     if(properties[next].firstSet.size() == 0) findFirst(properties, gramatica, next);
                     mergeFirsts(properties, nonTerminal, next);
+                    while(properties[next].hasEpsilon && i < dev.size()){
+                        i++;
+                        next = dev[i];
+                        if(isupper(next)){
+                            if(properties[next].firstSet.size() == 0) findFirst(properties, gramatica, next);
+                            mergeFirsts(properties, nonTerminal, next);
+                        }else{
+                            if(!findInFirst(first, next)) first.push_back(next);
+                            break;
+                        }
+                    }
                 }else{
                     if(!findInFirst(first, next)) first.push_back(next);
                 }
@@ -162,10 +174,20 @@ void findFollow(map<char, Properties>& properties, Gramatica gramatica, char non
                 if(pos+1 < dev.size()){
                     char val = dev[pos+1];
                     if(isupper(val)){
-                        if(!properties[val].hasEpsilon){
-                            addFirstToFollow(properties, nonTerminal, head);
-                        }else{
-                            if(properties[head].followSet.size() == 0){
+                        addFirstToFollow(properties, nonTerminal, val);
+                        int i = 2;
+                        while(properties[val].hasEpsilon && pos+i < dev.size()){
+                            val = dev[pos+i];
+                            i++;
+                            if(isupper(val)){
+                                addFirstToFollow(properties, nonTerminal, val);
+                            }else{
+                                addCharToFollow(follow, val);
+                                break;
+                            }
+                        }
+                        if(pos+i == dev.size() && properties[val].hasEpsilon){
+                            if(properties[val].followSet.size() == 0){
                                 findFollow(properties, gramatica, head);
                             }
                             mergeFollows(follow, properties[head].followSet);
